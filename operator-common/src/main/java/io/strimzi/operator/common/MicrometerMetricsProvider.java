@@ -13,6 +13,7 @@ import io.vertx.micrometer.backends.BackendRegistries;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.ToDoubleFunction;
 
 /**
  * Wraps creation of Micrometer metrics.
@@ -87,5 +88,23 @@ public class MicrometerMetricsProvider implements MetricsProvider {
                 .register(metrics);
 
         return gauge;
+    }
+
+    /**
+     * Creates new Gauge type metric
+     *
+     * @param name          Name of the metric
+     * @param description   Description of the metric
+     * @param tags          Tags used for the metric
+     * @param value         An object with some state which the gauge's instantaneous value is determined from
+     * @param fn            A function that yields a double value for the gauge, based on the state of obj.
+     * @return              AtomicInteger which represents the Gauge metric
+     */
+    @Override
+    public <T> Gauge gauge(String name, String description, Tags tags, T value, ToDoubleFunction<T> fn) {
+        return Gauge.builder(name, value, fn)
+                .description(description)
+                .tags(tags)
+                .register(metrics);
     }
 }

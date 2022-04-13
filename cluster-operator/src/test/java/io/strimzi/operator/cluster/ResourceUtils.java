@@ -16,6 +16,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.micrometer.core.instrument.Clock;
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
@@ -116,6 +117,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.ToDoubleFunction;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singleton;
@@ -669,6 +671,11 @@ public class ResourceUtils {
             @Override
             public AtomicInteger gauge(String name, String description, Tags tags) {
                 return new AtomicInteger(0);
+            }
+
+            @Override
+            public <M> Gauge gauge(String name, String description, Tags tags, M metric, ToDoubleFunction<M> fn) {
+                return null;
             }
         };
     }

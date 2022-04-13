@@ -84,7 +84,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -123,8 +122,8 @@ public abstract class AbstractConnectOperator<C extends KubernetesClient, T exte
     private Map<String, Counter> connectorsReconciliationsCounterMap = new ConcurrentHashMap<>(1);
     private Map<String, Counter> connectorsFailedReconciliationsCounterMap = new ConcurrentHashMap<>(1);
     private Map<String, Counter> connectorsSuccessfulReconciliationsCounterMap = new ConcurrentHashMap<>(1);
-    private Map<String, AtomicInteger> connectorsResourceCounterMap = new ConcurrentHashMap<>(1);
-    private Map<String, AtomicInteger> pausedConnectorsResourceCounterMap = new ConcurrentHashMap<>(1);
+    private Map<String, Map<String, Integer>> connectorsResourceCounterMap = new ConcurrentHashMap<>(1);
+    private Map<String, Map<String, Integer>> pausedConnectorsResourceCounterMap = new ConcurrentHashMap<>(1);
     private Map<String, Timer> connectorsReconciliationsTimerMap = new ConcurrentHashMap<>(1);
 
     public AbstractConnectOperator(Vertx vertx, PlatformFeaturesAvailability pfa, String kind,
@@ -364,9 +363,10 @@ public abstract class AbstractConnectOperator<C extends KubernetesClient, T exte
             LOGGER.debugCr(reconciliation, "Setting list of connector plugins in Kafka Connect status");
             connectStatus.setConnectorPlugins(connectorPlugins);
 
-            connectorsResourceCounter(namespace).set(desiredConnectors.size());
+            // todo: delete from map on connect deleting
+            connectorsResourceCounter(namespace).put(connectName, desiredConnectors.size());
             long pausedConnectorsCount = desiredConnectors.stream().filter(Annotations::isReconciliationPausedWithAnnotation).count();
-            pausedConnectorsResourceCounter(namespace).set((int) pausedConnectorsCount);
+            pausedConnectorsResourceCounter(namespace).put(connectName, (int) pausedConnectorsCount);
 
             Set<String> deleteConnectorNames = new HashSet<>(runningConnectorNames);
             deleteConnectorNames.removeAll(desiredConnectors.stream().map(c -> c.getMetadata().getName()).collect(Collectors.toSet()));
@@ -883,15 +883,15 @@ public abstract class AbstractConnectOperator<C extends KubernetesClient, T exte
                 "Number of reconciliations done by the operator for individual resources which were successful");
     }
 
-    public AtomicInteger connectorsResourceCounter(String namespace) {
+    public Map<String, Integer> connectorsResourceCounter(String namespace) {
         return Operator.getGauge(namespace, KafkaConnector.RESOURCE_KIND, METRICS_PREFIX + "resources",
-                metrics, null, connectorsResourceCounterMap,
+                metrics, null, connectorsResourceCounterMap, ConcurrentHashMap::new, value -> value.values().stream().mapToDouble(x -> (double) x).sum(),
                 "Number of custom resources the operator sees");
     }
 
-    public AtomicInteger pausedConnectorsResourceCounter(String namespace) {
+    public Map<String, Integer> pausedConnectorsResourceCounter(String namespace) {
         return Operator.getGauge(namespace, KafkaConnector.RESOURCE_KIND, METRICS_PREFIX + "resources.paused",
-                metrics, null, pausedConnectorsResourceCounterMap,
+                metrics, null, pausedConnectorsResourceCounterMap, ConcurrentHashMap::new, value -> value.values().stream().mapToDouble(x -> (double) x).sum(),
                 "Number of connectors the connect operator sees but does not reconcile due to paused reconciliations");
     }
 

@@ -23,6 +23,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.function.ToDoubleFunction;
 
 /**
  * Abstraction of an operator which is driven by resources of a given {@link #kind()}.
@@ -132,6 +134,14 @@ public interface Operator {
 
     static AtomicInteger getGauge(String namespace, String kind, String metricName, MetricsProvider metrics, Labels selectorLabels, Map<String, AtomicInteger> gaugeMap, String metricHelp) {
         return metric(namespace, kind, selectorLabels, gaugeMap, tags -> metrics.gauge(metricName, metricHelp, tags));
+    }
+
+    static <T> T getGauge(String namespace, String kind, String metricName, MetricsProvider metrics, Labels selectorLabels, Map<String, T> gaugeMap, Supplier<T> init, ToDoubleFunction<T> fn, String metricHelp) {
+        return metric(namespace, kind, selectorLabels, gaugeMap, tags -> {
+            T obj = init.get();
+            metrics.gauge(metricName, metricHelp, tags, obj, fn);
+            return obj;
+        });
     }
 
     static Timer getTimer(String namespace, String kind, String metricName, MetricsProvider metrics, Labels selectorLabels, Map<String, Timer> timerMap, String metricHelp) {
